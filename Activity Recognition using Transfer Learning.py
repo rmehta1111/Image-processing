@@ -162,21 +162,37 @@ epochs=50
 # Calling the function created earlier to preprocess images
 # Setting steps per epoch and validation data would have same settings as train data with some difference
 # steps per epoch will not be there for test and we would use validation steps- Also Random seeds & epochs in case of validation steps need not be specified again
-# Modelcheckpoint in callbacks will create a hdf5 file with best weights
+
+# Modelcheckpoint in callbacks will create a hdf5 file with best weights during training- The metric that we would be monitoring would be validation loss
+# Verbose is used to avoid printing values each time- to see values can change it to 1
+#save best only ensures that only the best weights are stored in the file
+# verbose = 2 gives us updates periodically
 model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=True,random_seed=1),steps_per_epoch=int(np.ceil(len(train)/batch_size)), epochs=epochs,
           validation_data=dataug(test['file'],test['label'],batch_size=batch_size,randomized=True),validation_steps=int(np.ceil(len(test)/batch_size)),
           callbacks=[ModelCheckpoint(filepath='./weights.hdf5',monitor='val_loss',verbose=0,save_best_only=True)],
           verbose=2)
+# ----- The model should start training when we run this code and you should be seeing updates -----#
 
+# If the RAM is low due to testing- Change the epoch to 1 and interrupt the execution in Runtime Tab and then run again from epoch parameters
+
+## Fine Tuning ##
+
+##---- Now that we have trained the first few layers and have seen the outputs -----#
+# We can unfreeze the entire model and train it on a data to fine tune the model #
+# We can copy the same parameters from before and set the transfered.trainable to True before running  
 transfered.trainable=True
 model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['acc'])
 batch_size=500
 epochs=5
 
+#Fit the model in next-code block
 model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=True,random_seed=1),steps_per_epoch=int(np.ceil(len(train)/batch_size)), epochs=epochs,
           validation_data=dataug(test['file'],test['label'],batch_size=batch_size,randomized=True),validation_steps=int(np.ceil(len(test)/batch_size)),
           callbacks=[ModelCheckpoint(filepath='./weights.hdf5',monitor='val_loss',verbose=0,save_best_only=True)],
           verbose=2)
+
+#We will also load the weights
 model.load_weights('weights.hdf5')
 
+#
 model.save('model_final.h5')
