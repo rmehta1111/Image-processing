@@ -106,3 +106,55 @@ def dataug(files, labels, batch_size=10,randomized=True, random_seed=1):
                 yield np.array(img_batch), np.array(label_batch)
                 img_batch = []
                 label_batch = []
+                
+## Load InceptionNet V3 and train ##
+
+#We are not taking the top layer from the inceptionNet model so- we specify include_top as False
+#We want to use weights from imagenet- We don't want to use input tensors and not going to set any specifications for input shapes except for the channel we want to use- RBG channel
+# 3 in input_shape is for color channels
+#Pooling for our current use case is fine with average- need to check the use case for min and max pooling
+#The original model was trained for 1000 classes, so we have used 1000 classes
+transfered=InceptionV3(include_top=False,weights='imagenet',input_tensor=None,input_shape=(None,None,3),pooling='avg',classes=1000)
+
+#Making a sequential model as we want to stack the layers one-by-one in a sequence
+model=Sequential()
+
+## Adding the layers for the model ##
+
+#As we removed the top layer from the inceptionNet model we need to add the input layer
+model.add((InputLayer(None,None,3)))
+
+#Now we are going to add the rest of the InceptionNet
+model.add(transfered)
+
+#Adding a dropout layer as this will help reducing the chances of overfitting the model
+#During the fine tuning we can change the value for Dropout
+model.add(Dropout(0.5))
+
+#Adding the dense layer where the actual factorization/classification takes place
+#This is a fully connected layer
+#Using sigmoid as activation function because that is used for classification
+model.add(Dense(1,activation='sigmoid'))
+
+transfered.trainable=False
+model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['acc'])
+batch_size=500
+epochs=50
+
+model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=True,random_seed=1),steps_per_epoch=int(np.ceil(len(train)/batch_size)), epochs=epochs,
+          validation_data=dataug(test['file'],test['label'],batch_size=batch_size,randomized=True),validation_steps=int(np.ceil(len(test)/batch_size)),
+          callbacks=[ModelCheckpoint(filepath='./weights.hdf5',monitor='val_loss',verbose=0,save_best_only=True)],
+          verbose=2)
+
+transfered.trainable=True
+model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['acc'])
+batch_size=500
+epochs=5
+
+model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=True,random_seed=1),steps_per_epoch=int(np.ceil(len(train)/batch_size)), epochs=epochs,
+          validation_data=dataug(test['file'],test['label'],batch_size=batch_size,randomized=True),validation_steps=int(np.ceil(len(test)/batch_size)),
+          callbacks=[ModelCheckpoint(filepath='./weights.hdf5',monitor='val_loss',verbose=0,save_best_only=True)],
+          verbose=2)
+model.load_weights('weights.hdf5')
+
+model.save('model_final.h5')
