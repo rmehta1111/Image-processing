@@ -107,14 +107,14 @@ def dataug(files, labels, batch_size=10,randomized=True, random_seed=1):
                 img_batch = []
                 label_batch = []
                 
-## Load InceptionNet V3 and train ##
+## Load InceptionNet V3 and train ## This code chunk runs fully till the dense layer addition
 
 #We are not taking the top layer from the inceptionNet model so- we specify include_top as False
 #We want to use weights from imagenet- We don't want to use input tensors and not going to set any specifications for input shapes except for the channel we want to use- RBG channel
 # 3 in input_shape is for color channels
 #Pooling for our current use case is fine with average- need to check the use case for min and max pooling
 #The original model was trained for 1000 classes, so we have used 1000 classes
-transfered=InceptionV3(include_top=False,weights='imagenet',input_tensor=None,input_shape=(None,None,3),pooling='avg',classes=1000)
+transferred=InceptionV3(include_top=False,weights='imagenet',input_tensor=None,input_shape=(None,None,3),pooling='avg',classes=1000)
 
 #Making a sequential model as we want to stack the layers one-by-one in a sequence
 model=Sequential()
@@ -125,7 +125,7 @@ model=Sequential()
 model.add((InputLayer(None,None,3)))
 
 #Now we are going to add the rest of the InceptionNet
-model.add(transfered)
+model.add(transferred)
 
 #Adding a dropout layer as this will help reducing the chances of overfitting the model
 #During the fine tuning we can change the value for Dropout
@@ -136,11 +136,33 @@ model.add(Dropout(0.5))
 #Using sigmoid as activation function because that is used for classification
 model.add(Dense(1,activation='sigmoid'))
 
-transfered.trainable=False
+#----- After the code-run at this step- InceptionNet is downloaded -----#
+
+# We are going to train only the top layers of the model after freezing the model
+
+#Freezing the model
+transferred.trainable=False
+
+#We will compile this model at this step with optimizer adam
+#As this is a binary classification problem we will add loss as binary crossentropy
+#Metric is chosen as accuracy
 model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['acc'])
+
+#Batch file selection is random- can go with any other value
 batch_size=500
+
+#To avoid system crash- the recommended value is 50- can reduce it to 5 or 10
 epochs=50
 
+#-----Need to run code again here to compile model and set the parameters -----#
+
+# Fitting the model
+#Recommended to use GPU runtime at this step by clicking on google colab 'Runtime' tab
+
+# Calling the function created earlier to preprocess images
+# Setting steps per epoch and validation data would have same settings as train data with some difference
+# steps per epoch will not be there for test and we would use validation steps- Also Random seeds & epochs in case of validation steps need not be specified again
+# Modelcheckpoint in callbacks will create a hdf5 file with best weights
 model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=True,random_seed=1),steps_per_epoch=int(np.ceil(len(train)/batch_size)), epochs=epochs,
           validation_data=dataug(test['file'],test['label'],batch_size=batch_size,randomized=True),validation_steps=int(np.ceil(len(test)/batch_size)),
           callbacks=[ModelCheckpoint(filepath='./weights.hdf5',monitor='val_loss',verbose=0,save_best_only=True)],
