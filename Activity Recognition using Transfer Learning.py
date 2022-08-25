@@ -194,5 +194,8 @@ model.fit(dataug(train['file'],train['label'],batch_size=batch_size,randomized=T
 #We will also load the weights
 model.load_weights('weights.hdf5')
 
-#
+# When we ran it for 500 epochs, test accuracy was 90% and training accuracy was 100%
+#But due to RAM restrictions, the recommended number of epochs is 50 to avoid crashing the model
+
+#To save the model in the folder
 model.save('model_final.h5')
